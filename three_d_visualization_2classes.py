@@ -243,6 +243,6 @@ def run_3d_visualization_2c():
     plt.show()
     
     fig2=create_3d_visualization_plotly()
-    go.show()
     
+
     return fig1,fig2
