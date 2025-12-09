@@ -1,8 +1,6 @@
 """数据加载模块"""
-import pandas as pd
 import seaborn as sns
 from sklearn.datasets import load_iris
-import numpy as np
 
 def load_iris_data():
     """加载Iris数据集"""
@@ -29,4 +27,5 @@ def preprocess_data(df):
     """数据预处理"""
     df_clean = df.dropna()
     df_clean['species'] = df_clean['species'].astype('category').cat.codes
+
     return df_clean
