@@ -54,33 +54,6 @@ def create_probability_surface():
                  np.exp(-((X_grid + peak_offset_x)**2 + (Y_grid + peak_offset_y)** 2) / peak_width_p0))
     prob_base *= (0.6 + 0.4 * lr_prob)
     
-    # 三个平面的2D投影计算 
-    proj_xy = prob_base
-    
-    # YZ面投影
-    Y_yz = np.linspace(-40, 40, 50)
-    Z_yz = np.linspace(-100, 100, 50)
-    Y_yz_grid, Z_yz_grid = np.meshgrid(Y_yz, Z_yz)
-    fixed_feat0_yz = 0
-    lr_prob_yz = get_lr_prob(np.full_like(Y_yz_grid, fixed_feat0_yz), Y_yz_grid, fixed_feat2)
-    
-    z_wave = 0.2 * np.sin(Z_yz_grid/8)
-    proj_yz = (np.exp(-((fixed_feat0_yz - peak_offset_x)**2 + (Y_yz_grid - peak_offset_y)** 2) / peak_width_p1) -
-               np.exp(-((fixed_feat0_yz + peak_offset_x)**2 + (Y_yz_grid + peak_offset_y)** 2) / peak_width_p0)) * (1 + z_wave)
-    proj_yz *= (0.6 + 0.4 * lr_prob_yz)
-    
-    # XZ面投影
-    X_xz = np.linspace(-40, 40, 50)
-    Z_xz = np.linspace(-100, 100, 50)
-    X_xz_grid, Z_xz_grid = np.meshgrid(X_xz, Z_xz)
-    fixed_feat1_xz = 40
-    lr_prob_xz = get_lr_prob(X_xz_grid, np.full_like(X_xz_grid, fixed_feat1_xz), fixed_feat2)
-    
-    z_wave_xz = 0.2 * np.cos(Z_xz_grid/8)
-    proj_xz = (np.exp(-((X_xz_grid - peak_offset_x)**2 + (fixed_feat1_xz - peak_offset_y)** 2) / peak_width_p1) -
-               np.exp(-((X_xz_grid + peak_offset_x)**2 + (fixed_feat1_xz + peak_offset_y)** 2) / peak_width_p0)) * (1 + z_wave_xz)
-    proj_xz *= (0.6 + 0.4 * lr_prob_xz)
-    
     # 绘图
     fig = plt.figure(figsize=(14, 12), dpi=120)
     ax = fig.add_subplot(111, projection='3d')
@@ -96,36 +69,74 @@ def create_probability_surface():
         shade=True
     )
     
-    # XY面投影
-    ax.contourf(
-        X_grid, Y_grid, proj_xy,
+    # XY面投影 (投影到Z=-100平面)
+    xy_projection_z = np.full_like(Z_surf, -100)
+    
+    # 创建XY投影面
+    xy_surf = ax.plot_surface(
+        X_grid, Y_grid, xy_projection_z,
+        rstride=2, cstride=2,
+        facecolors=plt.cm.coolwarm((Z_surf - Z_surf.min()) / (Z_surf.max() - Z_surf.min())),
+        alpha=0.8,
+        shade=False,
+        linewidth=0.1
+    )
+    
+    # YZ面投影 (投影到X=-40平面)
+    yz_projection_x = np.full_like(Y_grid, -40)
+    
+    # 创建YZ投影面
+    yz_surf = ax.plot_surface(
+        yz_projection_x, Y_grid, Z_surf,
+        rstride=2, cstride=2,
+        facecolors=plt.cm.coolwarm((Z_surf - Z_surf.min()) / (Z_surf.max() - Z_surf.min())),
+        alpha=0.8,
+        shade=False,
+        linewidth=0.1
+    )
+    
+    # XZ面投影 (投影到Y=40平面)
+    xz_projection_y = np.full_like(X_grid, 40)
+    
+    # 创建XZ投影面
+    xz_surf = ax.plot_surface(
+        X_grid, xz_projection_y, Z_surf,
+        rstride=2, cstride=2,
+        facecolors=plt.cm.coolwarm((Z_surf - Z_surf.min()) / (Z_surf.max() - Z_surf.min())),
+        alpha=0.8,
+        shade=False,
+        linewidth=0.1
+    )
+    
+    # 添加等高线投影作为辅助
+    # XY投影等高线
+    ax.contour(
+        X_grid, Y_grid, Z_surf,
         zdir='z', offset=-100,
-        cmap='coolwarm',
-        alpha=0.8,
-        levels=np.linspace(proj_xy.min(), proj_xy.max(), 20)
+        colors='k',
+        alpha=0.3,
+        linewidths=0.5,
+        levels=10
     )
     
-    # YZ面投影
-    ax.contourf(
-        np.full_like(Y_yz_grid, -40),
-        Y_yz_grid, Z_yz_grid,
-        proj_yz,
+    # YZ投影等高线
+    ax.contour(
+        Z_surf, Y_grid, X_grid,
         zdir='x', offset=-40,
-        cmap='coolwarm',
-        alpha=0.8,
-        levels=np.linspace(proj_yz.min(), proj_yz.max(), 20)
+        colors='k',
+        alpha=0.3,
+        linewidths=0.5,
+        levels=10
     )
     
-    # XZ面投影
-    ax.contourf(
-        X_xz_grid,
-        np.full_like(X_xz_grid, 40),
-        Z_xz_grid,
-        proj_xz,
+    # XZ投影等高线
+    ax.contour(
+        X_grid, Z_surf, Y_grid,
         zdir='y', offset=40,
-        cmap='coolwarm',
-        alpha=0.8,
-        levels=np.linspace(proj_xz.min(), proj_xz.max(), 20)
+        colors='k',
+        alpha=0.3,
+        linewidths=0.5,
+        levels=10
     )
     
     # 添加颜色条
@@ -148,7 +159,7 @@ def create_probability_surface():
     ax.grid(True, linestyle='-', color='gray', alpha=0.3, linewidth=0.5)
     
     # 视角调整
-    ax.view_init(elev=30, azim=45)
+    ax.view_init(elev=30, azim=300)
     
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     
